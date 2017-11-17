@@ -183,15 +183,16 @@ void eval(char *cmdline)
 				exit(0);
 			}
 		}
-		//addjob()
-		if(!bg/*foreground job check*/){
+
+		if(!bg){										/*foreground job check*/
 			int status;
 			if(waitpid(pid, &status, 0) < 0)
 				unix_error("waitfg: waitpid error");
 		}
-		else{ // background job check
+		else{ 											// background job check
 			//pid2jid() 함수 사용
-			printf("%d %s", pid, cmdline);
+			addjob(jobs, pid, bg, cmdline);
+			printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
 		}
 	}
 	return;
