@@ -172,27 +172,28 @@ void eval(char *cmdline)
 	char *argv[MAXARGS];
 	pid_t pid;
 	int bg;
-
 	bg = parseline(cmdline, argv);
-	
+//	pid = fork();
 	if(!builtin_cmd(argv)){
-		pid = fork();
-		if(pid == 0){
+		if((pid = fork()) < 0){
+			unix_error("fork error");
+		}
+		else if(pid == 0){
 			if((execve(argv[0], argv, environ) < 0)){
-				printf("%s, command not found.\n", argv[0]);
+				printf("%s, Command not found.\n", argv[0]);
 				exit(0);
 			}
 		}
-
-		if(!bg){										/*foreground job check*/
-			int status;
-			if(waitpid(pid, &status, 0) < 0)
-				unix_error("waitfg: waitpid error");
-		}
-		else{ 											// background job check
-			//pid2jid() 함수 사용
-			addjob(jobs, pid, bg, cmdline);
-			printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
+		else{
+			if(!bg){										/*foreground job check*/
+				int status;
+				waitpid(pid, &status, 0);// ...... //
+			}else{ 											// background job check
+				//pid2jid() 함수 사용
+				bg = bg+1; 
+				addjob(jobs, pid, bg, cmdline);
+				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
+			}
 		}
 	}
 	return;
@@ -204,6 +205,9 @@ int builtin_cmd(char **argv)
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
+	}else if(!strcmp(cmd, "jobs")){
+		listjobs(jobs, STDOUT_FILENO);
+		return 1;
 	}
 
 	return 0;
