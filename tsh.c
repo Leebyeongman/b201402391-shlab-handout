@@ -171,15 +171,24 @@ void eval(char *cmdline)
 {
 	char *argv[MAXARGS];
 	pid_t pid;
+	int bg;
 
-	parseline(cmdline, argv);
+	bg = parseline(cmdline, argv);
 	pid = fork();
 	if(!builtin_cmd(argv)){
 		if(pid == 0){
 			if((execve(argv[0], argv, environ) < 0)){
-				printf("%s, Command not found\n", argv);
+				printf("%s, command not found.\n", argv[0]);
 				exit(0);
 			}
+		}
+		if(!bg/*foreground job check*/){
+			int status;
+			if(waitpid(pid, &status, 0) < 0)
+				unix_error("waitfg: waitpid error");
+		}
+		else{ // background job check
+			printf("%d %s", pid, cmdline);
 		}
 	}
 	return;
