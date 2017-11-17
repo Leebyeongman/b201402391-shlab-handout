@@ -173,9 +173,10 @@ void eval(char *cmdline)
 	pid_t pid;
 	int bg;
 	bg = parseline(cmdline, argv);
-//	pid = fork();
+
 	if(!builtin_cmd(argv)){
-		if((pid = fork()) < 0){
+		pid = fork();
+		if(pid < 0){
 			unix_error("fork error");
 		}
 		else if(pid == 0){
@@ -190,8 +191,8 @@ void eval(char *cmdline)
 				waitpid(pid, &status, 0);// ...... //
 			}else{ 											// background job check
 				//pid2jid() 함수 사용
-				bg = bg+1; 
-				addjob(jobs, pid, bg, cmdline);
+			//	bg = bg+1; 
+				addjob(jobs, pid, BG, cmdline);
 				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
 			}
 		}
@@ -206,7 +207,7 @@ int builtin_cmd(char **argv)
 	if(!strcmp(cmd, "quit")){
 		exit(0);
 	}else if(!strcmp(cmd, "jobs")){
-		listjobs(jobs, STDOUT_FILENO);
+		listjobs(jobs, 0);
 		return 1;
 	}
 
