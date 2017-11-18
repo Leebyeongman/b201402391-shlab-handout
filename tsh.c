@@ -179,7 +179,7 @@ void eval(char *cmdline)
 		if(pid < 0){
 			unix_error("fork error");
 		}
-		else if(pid == 0){
+		if(pid == 0){
 			if((execve(argv[0], argv, environ) < 0)){
 				printf("%s, Command not found.\n", argv[0]);
 				exit(0);
@@ -188,13 +188,13 @@ void eval(char *cmdline)
 		else{
 			if(!bg){										/*foreground job check*/
 				int status;
-				waitpid(pid, &status, 0);// ...... //
-			}else{ 											// background job check
-				//pid2jid() 함수 사용
-			//	bg = bg+1; 
+				waitpid(pid, &status, 0);
+			}
+			else{ 											// background job check
+				//pid2jid() 함수 사용 
 				addjob(jobs, pid, BG, cmdline);
 				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
-			}
+				}
 		}
 	}
 	return;
@@ -206,11 +206,11 @@ int builtin_cmd(char **argv)
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
-	}else if(!strcmp(cmd, "jobs")){
+	}
+	else if (!strcmp(cmd , "jobs")){
 		listjobs(jobs, 0);
 		return 1;
 	}
-
 	return 0;
 }
 
