@@ -175,11 +175,17 @@ void eval(char *cmdline)
 	bg = parseline(cmdline, argv);
 
 	if(!builtin_cmd(argv)){
+		sigemtyset(&mask);
+		sigaddset(&mask, SIGINT);
+		sigaddset(&mask. SIGCHLD);
+		sigprocmask(SIG_BLOCK, &mask, NULL);
 		pid = fork();
+
 		if(pid < 0){
 			unix_error("fork error");
 		}
-		if(pid == 0){
+		else if(pid == 0){
+			sigprocmask(SIG_UNBLOCK, &mask, NULL);
 			if((execve(argv[0], argv, environ) < 0)){
 				printf("%s, Command not found.\n", argv[0]);
 				exit(0);
@@ -216,6 +222,23 @@ int builtin_cmd(char **argv)
 
 void waitfg(pid_t pid, int output_fd)
 {
+	struct job_t *j = getjobpid(jobs, pid);
+	char buf[MAXLINE];
+
+	if(!j)	
+		return;
+
+	while(j->pid==pid && j->state == FG)
+		sleep(1);
+	
+	if(verbose){
+		memset(buf, '\0', MAXLINE);
+		sprintf(buf, "waitfg: Process (%d) no longer ther fg process:q\n", pid);
+		if(write(output_fd, buf, strlen(buf)) < 0) {
+				fprintf(stderr, "Error writing to file\n");
+				exit(1);
+		}
+	}
 	return;
 }
 
@@ -229,9 +252,21 @@ void waitfg(pid_t pid, int output_fd)
  *     received a SIGSTOP or SIGTSTP signal. The handler reaps all
  *     available zombie children, but doesn't wait for any other
  *     currently running children to terminate.  
+ 커널은 자식 작업이 종료 될 때 (또는 좀비가) SIGSTOP 또는 SIGTSTP 신호를 수신 할 때마다 쉘에 SIGCHLD를 보냅니다. 핸들러는 사용 가능한 모든 좀비 하위를 반환하지만 현재 실행중인 다른 하위 노드가 종료 될 때까지 기다리지 않습니다.		
  */
 void sigchld_handler(int sig) 
 {
+	pid_t child_pid;
+	int status;
+	while((child_pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
+		if(WIFSIGNALED(status)){
+			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(child_pid), child_pid, WTERMSIG(status));
+			deletejob(jobs, child_pid);
+		}
+		else if(WIFEXITED(status)){
+			deletejob(jobs, child_pid);
+		}
+	}
 	return;
 }
 
@@ -239,9 +274,13 @@ void sigchld_handler(int sig)
  * sigint_handler - The kernel sends a SIGINT to the shell whenver the
  *    user types ctrl-c at the keyboard.  Catch it and send it along
  *    to the foreground job.  
+ sigint 핸들러 - 사용자가 키보드에서 ctrl-c를 타이프 할 때마다 커널은 쉘에 SIGINT를 보낸다. 그것을 잡아서 전경에 보냅니다.
  */
 void sigint_handler(int sig) 
 {
+	pid_t pid = fgpid(jobs);
+	if((pid) > 0)
+		kill(pid,sig);
 	return;
 }
 
@@ -249,6 +288,7 @@ void sigint_handler(int sig)
  * sigtstp_handler - The kernel sends a SIGTSTP to the shell whenever
  *     the user types ctrl-z at the keyboard. Catch it and suspend the
  *     foreground job by sending it a SIGTSTP.  
+ sigtstp_handler - 사용자가 키보드에서 ctrl-z를 타이프 할 때마다 커널은 쉘에 SIGTSTP를 보낸다. 그것을 포착하고 SIGTSTP를 전송하여 포 그라운드 작업을 일시 중단하십시오.
  */
 void sigtstp_handler(int sig) 
 {
@@ -553,4 +593,3 @@ void sigquit_handler(int sig)
 	printf("Terminating after receipt of SIGQUIT signal\n");
 	exit(1);
 }
-
