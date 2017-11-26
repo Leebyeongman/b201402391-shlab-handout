@@ -172,20 +172,23 @@ void eval(char *cmdline)
 	char *argv[MAXARGS];
 	pid_t pid;
 	int bg;
+	sigset_t mask; // 시그널을 세팅하는 변수
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask. SIGCHLD);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+//	sigaddset(&mask, SIGTSTP);
+
 	bg = parseline(cmdline, argv);
-
 	if(!builtin_cmd(argv)){
-		sigemtyset(&mask);
-		sigaddset(&mask, SIGINT);
-		sigaddset(&mask. SIGCHLD);
-		sigprocmask(SIG_BLOCK, &mask, NULL);
 		pid = fork();
-
 		if(pid < 0){
 			unix_error("fork error");
 		}
-		else if(pid == 0){
-			sigprocmask(SIG_UNBLOCK, &mask, NULL);
+		if(pid == 0){
+		//	sigprocmask(SIG_UNBLOCK, &mask, NULL);
+		//	setpgid(0,0);
 			if((execve(argv[0], argv, environ) < 0)){
 				printf("%s, Command not found.\n", argv[0]);
 				exit(0);
@@ -194,7 +197,8 @@ void eval(char *cmdline)
 		else{
 			if(!bg){										/*foreground job check*/
 				int status;
-				waitpid(pid, &status, 0);
+				//waitpid(pid, &status, 0);
+				waitfg(pid, 0);
 			}
 			else{ 											// background job check
 				//pid2jid() 함수 사용 
@@ -256,16 +260,23 @@ void waitfg(pid_t pid, int output_fd)
  */
 void sigchld_handler(int sig) 
 {
-	pid_t child_pid;
 	int status;
-	while((child_pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){
-		if(WIFSIGNALED(status)){
-			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(child_pid), child_pid, WTERMSIG(status));
-			deletejob(jobs, child_pid);
+	pid_t pid;
+
+	while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){ // 자식이 종료됐는지 실행중인지 확인
+		if(WIFSIGNALED(status)){ // 자식 프로세스가 시그널에 의해서 종료되면 true
+			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status)); 
+			//WTERMSIG = 자식프로세스를 죽인 시그널번호를 리턴
+			deletejob(jobs, pid);
 		}
 		else if(WIFEXITED(status)){
-			deletejob(jobs, child_pid);
+			deletejob(jobs, pid);
 		}
+//		else if(WIFSTOPPED(status)){
+//			struct job_t *j = getjobpid(jobs, pid);
+//			j->state = ST;
+//			printf("Job [%d] (%d) stopped by signal %d \n", pid2jid(pid), pid, WSTOPSIG(status));
+//		}
 	}
 	return;
 }
