@@ -176,17 +176,18 @@ void eval(char *cmdline)
 
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGCHLD);
-	sigaddset(&mask. SIGINT);
-
+	sigaddset(&mask, SIGINT);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
 	bg = parseline(cmdline, argv);
+	
 	if(!builtin_cmd(argv)){
 		pid = fork();
 		if(pid < 0){
 			unix_error("fork error");
 		}
-		if(pid == 0){
+		else if(pid == 0){
 			sigprocmask(SIG_UNBLOCK, &mask, NULL);
-			setpgid(0,0);
+		//	setpgid(0,0);
 			if((execve(argv[0], argv, environ) < 0)){
 				printf("%s, Command not found.\n", argv[0]);
 				exit(0);
@@ -194,15 +195,15 @@ void eval(char *cmdline)
 		}
 		else{
 			if(!bg){										/*foreground job check*/
-				int status;
-				//waitpid(pid, &status, 0);
+				addjob(jobs, pid, FG, cmdline);
+				sigprocmask(SIG_UNBLOCK, &mask, NULL);
 				waitfg(pid, 0);
 			}
 			else{ 											// background job check
 				//pid2jid() 함수 사용 
 				addjob(jobs, pid, BG, cmdline);
 				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
-				}
+			}
 		}
 	}
 	return;
@@ -261,17 +262,17 @@ void sigchld_handler(int sig)
 	int status;
 	pid_t pid;
 
-	while((pid == waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){ // 자식이 종료됐는지 실행중인지 확인
+	while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0){ // 자식이 종료됐는지 실행중인지 확인
 		if(WIFEXITED(status)){ // 자식 프로세스가 시그널에 의해서 종료되면 true
-			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status)); 
 			deletejob(jobs, pid);
 		}
-		else if(WIFSIGNALE(status)){
-			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status));	
+		else if(WIFSIGNALED(status)) {
+			printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);	
 			deletejob(jobs, pid);
-		}
+		} else {
 		if(errno != ECHILD)
 			unix_error("waitpid error");
+		}
 	}
 	return;
 }
