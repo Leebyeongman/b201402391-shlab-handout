@@ -189,7 +189,7 @@ void eval(char *cmdline)
 		}
 		else if(pid == 0){
 			sigprocmask(SIG_UNBLOCK, &mask, NULL);
-		//	setpgid(0,0);
+			setpgid(0,0);
 			if((execve(argv[0], argv, environ) < 0)){
 				printf("%s, Command not found.\n", argv[0]);
 				exit(0);
@@ -204,6 +204,7 @@ void eval(char *cmdline)
 			else{ 											// background job check
 				//pid2jid() 함수 사용 
 				addjob(jobs, pid, BG, cmdline);
+				sigprocmask(SIG_UNBLOCK, &mask, NULL);
 				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
 			}
 		}
@@ -214,12 +215,28 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv)
 {
 	char *cmd = argv[0];
+	char *cmd1 = argv[1];
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
 	}
 	else if (!strcmp(cmd , "jobs")){
 		listjobs(jobs, 0);
+		return 1;
+	}
+	else if(!strcmp(cmd, "bg")){
+		int pid,jid;
+		if(!strcmp(cmd1, "%1")){
+			pid = jobs->pid;
+			kill(-pid, SIGCONT);
+		}
+		else if(!strcmp(cmd1, "%2")){
+			pid = jobs->pid;
+			kill(-pid, SIGCONT);
+		}
+		if(jobs->state == ST)
+			jobs->state = BG;
+		printf("[%d] (%d) %s", jobs->jid, jobs->pid, jobs->cmdline);
 		return 1;
 	}
 	return 0;
