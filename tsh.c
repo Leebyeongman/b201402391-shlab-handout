@@ -215,7 +215,8 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv)
 {
 	char *cmd = argv[0];
-	char *cmd1 = argv[1];
+	int pid, jid;
+	struct job_t *j;
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
@@ -225,19 +226,23 @@ int builtin_cmd(char **argv)
 		return 1;
 	}
 	else if(!strcmp(cmd, "bg")){
-		int pid,jid;
-		if(!strcmp(cmd1, "%1")){
-			pid = jobs->pid;
-			kill(-pid, SIGCONT);
+		if(argv[1]== "%1"){
+		//	pid = atoi(&argv[1][1]);
+			pid = getjobjid(jobs, pid);
 		}
-		else if(!strcmp(cmd1, "%2")){
-			pid = jobs->pid;
-			kill(-pid, SIGCONT);
-		}
+	//	else{
+	//		pid = atoi(argv[1]);
+	//		j = getjobpid(jobs, pid)->pid;
+	//	}
+		
+		kill(-pid, SIGCONT);
 		if(jobs->state == ST)
 			jobs->state = BG;
 		printf("[%d] (%d) %s", jobs->jid, jobs->pid, jobs->cmdline);
 		return 1;
+	}
+	else if(!strcmp(cmd, "fg")){
+		
 	}
 	return 0;
 }
@@ -293,11 +298,7 @@ void sigchld_handler(int sig)
 			getjobpid(jobs, pid)->state = ST;
 			printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, WSTOPSIG(status));
 		}
-		else {
-			if(errno != ECHILD)
-				unix_error("waitpid error");
-		}
-	}
+			}
 	return;
 }
 
