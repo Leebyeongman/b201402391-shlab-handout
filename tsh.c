@@ -215,34 +215,52 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv)
 {
 	char *cmd = argv[0];
-	int pid, jid;
-	struct job_t *j;
+	int pid;
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
 	}
-	else if (!strcmp(cmd , "jobs")){
+	if (!strcmp(cmd , "jobs")){
 		listjobs(jobs, 0);
 		return 1;
 	}
-	else if(!strcmp(cmd, "bg")){
-		if(argv[1]== "%1"){
+	if(!strcmp(cmd, "bg")){
+		int i;
+		pid = getjobpid(jobs, pid)->pid;
+		kill(-pid, SIGCONT);
+
+		if(argv[1][0]== "%"){
+			if(argv[1][1] == "1"){
+				for(i=0; i<MAXJOBS; i++){
+					if(jobs->state == ST)
+						jobs->state = BG;
+				}
+			pid = getjobpid(jobs, pid)->pid;
+
+			}
+			if(argv[1][1] == "2"){
+				for(i=0; i<MAXJOBS; i++){
+					if(jobs->state == ST)
+						jobs->state =BG;
+				}
+			}
 		//	pid = atoi(&argv[1][1]);
-			pid = getjobjid(jobs, pid);
+			pid = getjobpid(jobs, pid)->pid;
 		}
 	//	else{
 	//		pid = atoi(argv[1]);
 	//		j = getjobpid(jobs, pid)->pid;
-	//	}
-		
-		kill(-pid, SIGCONT);
-		if(jobs->state == ST)
-			jobs->state = BG;
-		printf("[%d] (%d) %s", jobs->jid, jobs->pid, jobs->cmdline);
+	//
+		printf("[%d] (%d) %s", pid2jid(pid), pid, jobs->cmdline);
 		return 1;
 	}
-	else if(!strcmp(cmd, "fg")){
-		
+	if(!strcmp(cmd, "fg")){
+		int pid;
+		kill(-(jobs->pid), SIGCONT);
+		if(jobs->state == ST || jobs->state == BG){
+			
+		}
+
 	}
 	return 0;
 }
