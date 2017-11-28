@@ -177,7 +177,9 @@ void eval(char *cmdline)
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGCHLD);
 	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGTSTP);
 	sigprocmask(SIG_BLOCK, &mask, NULL);
+
 	bg = parseline(cmdline, argv);
 	
 	if(!builtin_cmd(argv)){
@@ -197,7 +199,7 @@ void eval(char *cmdline)
 			if(!bg){										/*foreground job check*/
 				addjob(jobs, pid, FG, cmdline);
 				sigprocmask(SIG_UNBLOCK, &mask, NULL);
-				waitfg(pid, 0);
+				waitfg(pid, 1);
 			}
 			else{ 											// background job check
 				//pid2jid() 함수 사용 
@@ -238,8 +240,8 @@ void waitfg(pid_t pid, int output_fd)
 		memset(buf, '\0', MAXLINE);
 		sprintf(buf, "waitfg: Process (%d) no longer ther fg process:q\n", pid);
 		if(write(output_fd, buf, strlen(buf)) < 0) {
-				fprintf(stderr, "Error writing to file\n");
-				exit(1);
+			fprintf(stderr, "Error writing to file\n");
+			exit(1);
 		}
 	}
 	return;
@@ -269,9 +271,14 @@ void sigchld_handler(int sig)
 		else if(WIFSIGNALED(status)) {
 			printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);	
 			deletejob(jobs, pid);
-		} else {
-		if(errno != ECHILD)
-			unix_error("waitpid error");
+		} 
+		else if(WIFSTOPPED(status)){
+			getjobpid(jobs, pid)->state = ST;
+			printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, WSTOPSIG(status));
+		}
+		else {
+			if(errno != ECHILD)
+				unix_error("waitpid error");
 		}
 	}
 	return;
@@ -285,7 +292,7 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
-	pid_t pid = fgpid(jobs);
+	pid_t pid = fgpid(jobs); // fg 의 pid를 반환
 	if(pid > 0)
 		kill(pid,sig);
 	return;
@@ -299,6 +306,9 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+	pid_t pid = fgpid(jobs);
+	if(pid > 0)
+		kill(pid,sig);
 	return;
 }
 
