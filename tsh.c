@@ -199,7 +199,7 @@ void eval(char *cmdline)
 			if(!bg){										/*foreground job check*/
 				addjob(jobs, pid, FG, cmdline);
 				sigprocmask(SIG_UNBLOCK, &mask, NULL);
-				waitfg(pid, 1);
+				waitfg(pid, 0);
 			}
 			else{ 											// background job check
 				//pid2jid() 함수 사용 
@@ -215,7 +215,8 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv)
 {
 	char *cmd = argv[0];
-	int pid;
+	int i;
+	int jid;
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
@@ -225,42 +226,26 @@ int builtin_cmd(char **argv)
 		return 1;
 	}
 	if(!strcmp(cmd, "bg")){
-		int i;
-		pid = getjobpid(jobs, pid)->pid;
-		kill(-pid, SIGCONT);
-
-		if(argv[1][0]== "%"){
-			if(argv[1][1] == "1"){
-				for(i=0; i<MAXJOBS; i++){
-					if(jobs->state == ST)
-						jobs->state = BG;
-				}
-			pid = getjobpid(jobs, pid)->pid;
-
-			}
-			if(argv[1][1] == "2"){
-				for(i=0; i<MAXJOBS; i++){
-					if(jobs->state == ST)
-						jobs->state =BG;
+		if(argv[1][0] == '%'){
+			if(jobs[(int)argv[1][1]-1]){
+				if(jobs[i].state == ST){
+					jid = jobs[i].pid;
+					getjobpid(jobs, jid)->state = BG;
+					kill(-getjobpid(jobs, jid)->pid, SIGCONT);				
 				}
 			}
-		//	pid = atoi(&argv[1][1]);
-			pid = getjobpid(jobs, pid)->pid;
+			else if(argv[1][1] == '2'){
+				for(i = 0; i<MAXJOBS; i++){
+					if(jobs[i].state == ST){
+						jid = jobs[i].pid;
+						getjobpid(jobs, jid)->state = BG;
+						kill(-getjobpid(jobs,jid)->pid, SIGCONT);
+					}
+				}
+			}
 		}
-	//	else{
-	//		pid = atoi(argv[1]);
-	//		j = getjobpid(jobs, pid)->pid;
-	//
-		printf("[%d] (%d) %s", pid2jid(pid), pid, jobs->cmdline);
+		printf("[%d] (%d) %s", pid2jid(jid), jid, jobs->cmdline);
 		return 1;
-	}
-	if(!strcmp(cmd, "fg")){
-		int pid;
-		kill(-(jobs->pid), SIGCONT);
-		if(jobs->state == ST || jobs->state == BG){
-			
-		}
-
 	}
 	return 0;
 }
