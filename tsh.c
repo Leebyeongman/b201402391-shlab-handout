@@ -184,10 +184,7 @@ void eval(char *cmdline)
 	
 	if(!builtin_cmd(argv)){
 		pid = fork();
-		if(pid < 0){
-			unix_error("fork error");
-		}
-		else if(pid == 0){
+		if(pid == 0){
 			sigprocmask(SIG_UNBLOCK, &mask, NULL);
 			setpgid(0,0);
 			if((execve(argv[0], argv, environ) < 0)){
@@ -195,19 +192,16 @@ void eval(char *cmdline)
 				exit(0);
 			}
 		}
-		else{
+			addjob(jobs, pid, (bg == 1 ? BG:FG), cmdline);
+			sigprocmask(SIG_UNBLOCK, &mask, NULL);
+
 			if(!bg){										/*foreground job check*/
-				addjob(jobs, pid, FG, cmdline);
-				sigprocmask(SIG_UNBLOCK, &mask, NULL);
-				waitfg(pid, 0);
+				waitfg(pid, 1);
 			}
 			else{ 											// background job check
 				//pid2jid() 함수 사용 
-				addjob(jobs, pid, BG, cmdline);
-				sigprocmask(SIG_UNBLOCK, &mask, NULL);
 				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
 			}
-		}
 	}
 	return;
 }
@@ -215,36 +209,42 @@ void eval(char *cmdline)
 int builtin_cmd(char **argv)
 {
 	char *cmd = argv[0];
-	int i;
-	int jid;
 
 	if(!strcmp(cmd, "quit")){
 		exit(0);
 	}
 	if (!strcmp(cmd , "jobs")){
-		listjobs(jobs, 0);
+		listjobs(jobs, STDOUT_FILENO);
 		return 1;
 	}
 	if(!strcmp(cmd, "bg")){
-		if(argv[1][0] == '%'){
-			if(jobs[(int)argv[1][1]-1]){
-				if(jobs[i].state == ST){
-					jid = jobs[i].pid;
-					getjobpid(jobs, jid)->state = BG;
-					kill(-getjobpid(jobs, jid)->pid, SIGCONT);				
-				}
-			}
-			else if(argv[1][1] == '2'){
-				for(i = 0; i<MAXJOBS; i++){
+//		int i;
+		int jid;
+/*
+			if(argv[1][1] == '1'){
+				for(i = 0; i<MAXJOBS; i++) {
 					if(jobs[i].state == ST){
+						jobs[i].state = BG;
+						kill(jobs[i].pid, SIGCONT);
 						jid = jobs[i].pid;
-						getjobpid(jobs, jid)->state = BG;
-						kill(-getjobpid(jobs,jid)->pid, SIGCONT);
 					}
 				}
 			}
-		}
-		printf("[%d] (%d) %s", pid2jid(jid), jid, jobs->cmdline);
+			if(argv[1][1] == '2'){
+				for(i = 0; i<MAXJOBS; i++) {
+					if(jobs[i].state == ST){
+						jobs[i].state = BG;
+						kill(jobs[i].pid, SIGCONT);
+						jid = jobs[i].pid;
+					}
+				}
+			}*/
+		jid = maxjid(jobs);
+
+		if(getjobjid(jobs, jid)->state == ST) 
+			getjobjid(jobs, jid)->state = BG;
+
+		printf("[%d] (%d) %s", jid, getjobjid(jobs, jid)->pid, getjobjid(jobs, jid)->cmdline);
 		return 1;
 	}
 	return 0;
@@ -299,7 +299,7 @@ void sigchld_handler(int sig)
 		} 
 		else if(WIFSTOPPED(status)){
 			getjobpid(jobs, pid)->state = ST;
-			printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, WSTOPSIG(status));
+			printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
 		}
 			}
 	return;
@@ -314,8 +314,8 @@ void sigchld_handler(int sig)
 void sigint_handler(int sig) 
 {
 	pid_t pid = fgpid(jobs); // fg 의 pid를 반환
-	if(pid > 0)
-		kill(pid,sig);
+	if(pid != 0)
+		kill(-pid,SIGINT);
 	return;
 }
 
@@ -328,8 +328,8 @@ void sigint_handler(int sig)
 void sigtstp_handler(int sig) 
 {
 	pid_t pid = fgpid(jobs);
-	if(pid > 0)
-		kill(pid,sig);
+	if(pid != 0)
+		kill(-pid,SIGTSTP);
 	return;
 }
 
