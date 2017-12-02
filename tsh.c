@@ -225,9 +225,9 @@ int builtin_cmd(char **argv)
 		if(argv[1][0] == '%'){
 			job = getjobjid(jobs, atoi(&argv[1][1]));
 		}
-		else {
-			job = getjobpid(jobs, atoi(argv[1]));
-		}
+//		else {
+//			job = getjobpid(jobs, atoi(argv[1]));
+//		}
 		kill((job->pid), SIGCONT);
 		job->state = BG;
 		printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
@@ -255,6 +255,17 @@ int builtin_cmd(char **argv)
 //			getjobjid(jobs, jid)->state = BG;
 
 //		printf("[%d] (%d) %s", pid2jid(jid), jid, getjobjid(jobs, jid)->cmdline);
+		return 1;
+	}
+	if(!strcmp(cmd, "fg")){
+		struct job_t *job;
+
+		if(argv[1][0] == '%'){
+			job = getjobjid(jobs, atoi(&argv[1][1]));
+		}
+		kill((job->pid), SIGCONT);
+		job->state =FG;
+//    	printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
 		return 1;
 	}
 	return 0;
