@@ -218,31 +218,43 @@ int builtin_cmd(char **argv)
 		return 1;
 	}
 	if(!strcmp(cmd, "bg")){
-//		int i;
-		int jid;
+	//	int i;
+	//	int jid,pid;
+		struct job_t *job;
 
-		if(argv[1][1] == '1' ){
-			if(jobs[0].state == ST){
-				jobs[0].state = BG;
-				kill(jobs[0].pid, SIGCONT);
-				jid = jobs[0].pid;
+		if(argv[1][0] == '%'){
+			job = getjobjid(jobs, atoi(&argv[1][1]));
+		}
+		else {
+			job = getjobpid(jobs, atoi(argv[1]));
+		}
+		kill((job->pid), SIGCONT);
+		job->state = BG;
+		printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
+/*		if(argv[1][1] == '1' ){
+			for(i=0; i<MAXJOBS; i++){
+				if(jobs[i].state == ST){
+					jobs[i].state = BG;
+					kill(jid, SIGCONT);				
+				}
+				jid = jobs[i].pid;
 			}
 		}	
-//			if(argv[1][1] == '2'){
-//				for(i = 0; i<MAXJOBS; i++) {
-//					if(jobs[i].state == ST){
-///						jobs[i].state = BG;
-//						kill(jobs[i].pid, SIGCONT);
-//						jid = jobs[i].pid;
-//					}
-//				}
-//			}
-	//	jid = maxjid(jobs);
+		if(argv[1][1] == '2'){
+			for(i = 0; i<MAXJOBS; i++) {
+				if(jobs[i].state == ST){
+					jobs[i].state = BG;
+					jid = jobs[i].pid;
+				//	kill(jobs[i].pid, SIGCONT);
+				}
+			}
+		}*/
+//		jid = maxjid(jobs);
 
 //		if(getjobjid(jobs, jid)->state == ST) 
 //			getjobjid(jobs, jid)->state = BG;
 
-		printf("[%d] (%d) %s", getjobjid(jobs, jid)->jid, getjobjid(jobs, jid)->pid, getjobjid(jobs, jid)->cmdline);
+//		printf("[%d] (%d) %s", pid2jid(jid), jid, getjobjid(jobs, jid)->cmdline);
 		return 1;
 	}
 	return 0;
