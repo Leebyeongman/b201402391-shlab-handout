@@ -192,16 +192,17 @@ void eval(char *cmdline)
 				exit(0);
 			}
 		}
-			addjob(jobs, pid, (bg == 1 ? BG:FG), cmdline);
-			sigprocmask(SIG_UNBLOCK, &mask, NULL);
-
-			if(!bg){										/*foreground job check*/
+		if(!bg){										/*foreground job check*/
+				addjob(jobs, pid, FG, cmdline);
+				sigprocmask(SIG_UNBLOCK, &mask, NULL);
 				waitfg(pid, 1);
-			}
-			else{ 											// background job check
-				//pid2jid() 함수 사용 
-				printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
-			}
+		}
+		else{ 											// background job check
+			//pid2jid() 함수 사용 
+			addjob(jobs, pid, BG, cmdline);
+			sigprocmask(SIG_UNBLOCK, &mask, NULL);
+			printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);		
+		}
 	}
 	return;
 }
@@ -218,16 +219,12 @@ int builtin_cmd(char **argv)
 		return 1;
 	}
 	if(!strcmp(cmd, "bg")){
-	//	int i;
-	//	int jid,pid;
 		struct job_t *job;
 
 		if(argv[1][0] == '%'){
-			job = getjobjid(jobs, atoi(&argv[1][1]));
+			if(jobs->state == ST)
+				job = getjobjid(jobs, atoi(&argv[1][1]));
 		}
-//		else {
-//			job = getjobpid(jobs, atoi(argv[1]));
-//		}
 		kill((job->pid), SIGCONT);
 		job->state = BG;
 		printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
@@ -265,7 +262,6 @@ int builtin_cmd(char **argv)
 		}
 		kill((job->pid), SIGCONT);
 		job->state =FG;
-//    	printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
 		return 1;
 	}
 	return 0;
@@ -315,12 +311,12 @@ void sigchld_handler(int sig)
 			deletejob(jobs, pid);
 		}
 		else if(WIFSIGNALED(status)) {
-			printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);	
+//			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status));	
 			deletejob(jobs, pid);
 		} 
 		else if(WIFSTOPPED(status)){
 			getjobpid(jobs, pid)->state = ST;
-			printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
+			printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(pid), pid, WSTOPSIG(status));
 		}
 			}
 	return;
@@ -335,7 +331,7 @@ void sigchld_handler(int sig)
 void sigint_handler(int sig) 
 {
 	pid_t pid = fgpid(jobs); // fg 의 pid를 반환
-	if(pid != 0)
+	if(pid > 0)
 		kill(-pid,SIGINT);
 	return;
 }
@@ -349,7 +345,7 @@ void sigint_handler(int sig)
 void sigtstp_handler(int sig) 
 {
 	pid_t pid = fgpid(jobs);
-	if(pid != 0)
+	if(pid > 0)
 		kill(-pid,SIGTSTP);
 	return;
 }
@@ -561,13 +557,13 @@ void listjobs(struct job_t *jobs, int output_fd)
 			memset(buf, '\0', MAXLINE);
 			switch (jobs[i].state) {
 				case BG:
-					sprintf(buf, "Running    ");
+					sprintf(buf, "Running ");
 					break;
 				case FG:
 					sprintf(buf, "Foreground ");
 					break;
 				case ST:
-					sprintf(buf, "Stopped    ");
+					sprintf(buf, "Stopped ");
 					break;
 				default:
 					sprintf(buf, "listjobs: Internal error: job[%d].state=%d ",
