@@ -221,10 +221,10 @@ int builtin_cmd(char **argv)
 	if(!strcmp(cmd, "bg")){
 		struct job_t *job;
 
-		if(argv[1][0] == '%'){
-			if(jobs->state == ST)
+//		if(argv[1][0] == '%'){
+		//	if(jobs->state == ST)
 				job = getjobjid(jobs, atoi(&argv[1][1]));
-		}
+//		}
 		kill((job->pid), SIGCONT);
 		job->state = BG;
 		printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
@@ -311,7 +311,7 @@ void sigchld_handler(int sig)
 			deletejob(jobs, pid);
 		}
 		else if(WIFSIGNALED(status)) {
-//			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status));	
+			printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(status));	
 			deletejob(jobs, pid);
 		} 
 		else if(WIFSTOPPED(status)){
