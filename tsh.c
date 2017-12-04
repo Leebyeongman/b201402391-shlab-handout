@@ -227,18 +227,21 @@ int builtin_cmd(char **argv)
 					job = getjobjid(jobs, atoi(&argv[1][1]));
 			}
 		}
-		kill((job->pid), SIGCONT);
+		kill(-(job->pid), SIGCONT);
 		job->state = BG;
 		printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
 		return 1;
 	}
 	if(!strcmp(cmd, "fg")){
 		struct job_t *job;
-
+		int i;
 		if(argv[1][0] == '%'){
-			job = getjobjid(jobs, atoi(&argv[1][1]));
+			for(i=0; i<MAXJOBS;i++){
+				if(jobs[i].state == ST || jobs[i].state == BG)
+					job = getjobjid(jobs, atoi(&argv[1][1]));
+			}
 		}
-		kill((job->pid), SIGCONT);
+		kill(-(job->pid), SIGCONT);
 		job->state =FG;
 		return 1;
 	}
